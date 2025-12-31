@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Water Guardian</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background: linear-gradient(135deg, #0061f2 0%, #00ba94 100%); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .sensor-val { font-size: 2.5rem; font-weight: 700; color: #333; }
+        .unit { font-size: 1rem; color: #777; }
+        
+        /* Danger Animation */
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(255, 82, 82, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); } }
+        .danger-mode { animation: pulse-red 2s infinite; border: 2px solid #ff5252; }
+        .bg-danger-soft { background-color: #ffe5e5; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark mb-4 p-3 shadow-sm">
+        <div class="container">
+            <span class="navbar-brand h1 mb-0"><i class="fa-solid fa-droplet me-2"></i> Smart Water Guardian</span>
+            <span class="badge bg-light text-dark rounded-pill"><i class="fa-solid fa-wifi text-success"></i> Live System</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="alert-box" class="alert alert-danger text-center shadow" style="display: none;">
+            <h4 class="alert-heading"><i class="fa-solid fa-triangle-exclamation"></i> WARNING DETECTED</h4>
+            <p id="alert-msg" class="mb-0">Valve Closed Automatically.</p>
+            <a id="evidence-btn" href="#" target="_blank" class="btn btn-sm btn-outline-danger mt-2" style="display:none;">View Evidence Photo</a>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-7 mb-4">
+                <div class="card h-100 overflow-hidden" id="video-card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold"><i class="fa-solid fa-camera text-primary"></i> Live AI Feed</h6>
+                        <span id="ai-status" class="badge bg-success">Safe</span>
+                    </div>
+                    <div class="card-body p-0 bg-black d-flex align-items-center justify-content-center">
+                        <img src="/video_feed" class="img-fluid w-100" style="max-height: 400px; object-fit: contain;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card mb-3 text-center text-white bg-success p-3" id="valve-card">
+                    <div class="card-body">
+                        <h6 class="text-uppercase opacity-75">Valve Status</h6>
+                        <i id="valve-icon" class="fa-solid fa-lock-open fa-3x my-2"></i>
+                        <h2 id="valve-text" class="fw-bold">OPEN</h2>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card p-3 text-center border-start border-5 border-info h-100">
+                            <i class="fa-solid fa-flask text-info fa-lg mb-2"></i>
+                            <h6 class="text-muted mb-0">pH Level</h6>
+                            <div class="sensor-val" id="ph-val">--</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card p-3 text-center border-start border-5 border-warning h-100">
+                            <i class="fa-solid fa-water text-warning fa-lg mb-2"></i>
+                            <h6 class="text-muted mb-0">Turbidity</h6>
+                            <div class="sensor-val" id="turb-val">--</div>
+                            <span class="unit">NTU</span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card p-3 d-flex flex-row align-items-center justify-content-between border-start border-5 border-primary">
+                            <div class="text-start">
+                                <h6 class="text-muted mb-0">TDS Value</h6>
+                                <small class="text-primary">Total Dissolved Solids</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="sensor-val" id="tds-val">--</span>
+                                <span class="unit">ppm</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateDashboard() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update Numbers
+                    document.getElementById('ph-val').innerText = data.ph;
+                    document.getElementById('turb-val').innerText = data.turbidity;
+                    document.getElementById('tds-val').innerText = data.tds;
+
+                    // Update Alert & Valve
+                    const alertBox = document.getElementById('alert-box');
+                    const valveCard = document.getElementById('valve-card');
+                    const videoCard = document.getElementById('video-card');
+
+                    if (data.danger_active) {
+                        // Danger Mode
+                        alertBox.style.display = "block";
+                        document.getElementById('alert-msg').innerText = data.status_msg;
+                        
+                        valveCard.classList.remove('bg-success');
+                        valveCard.classList.add('bg-danger');
+                        document.getElementById('valve-text').innerText = "CLOSED";
+                        document.getElementById('valve-icon').className = "fa-solid fa-lock fa-3x my-2";
+                        
+                        videoCard.classList.add('danger-mode'); // Red Pulse
+
+                        // Show Evidence Link
+                        if(data.evidence_url) {
+                            const btn = document.getElementById('evidence-btn');
+                            btn.style.display = "inline-block";
+                            btn.href = data.evidence_url;
+                        }
+
+                    } else {
+                        // Safe Mode
+                        alertBox.style.display = "none";
+                        videoCard.classList.remove('danger-mode');
+                        
+                        valveCard.classList.remove('bg-danger');
+                        valveCard.classList.add('bg-success');
+                        document.getElementById('valve-text').innerText = "OPEN";
+                        document.getElementById('valve-icon').className = "fa-solid fa-lock-open fa-3x my-2";
+                    }
+                })
+                .catch(e => console.error(e));
+        }
+
+        setInterval(updateDashboard, 1000); // Poll every second
+    </script>
+</body>
+</html>

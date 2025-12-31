@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blynk Console - Smart Water</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        /* BLYNK THEME COLORS */
+        :root {
+            --bg-color: #1e1e2d;
+            --card-bg: #27293d;
+            --accent-green: #2ecc71;
+            --accent-red: #e74c3c;
+            --text-color: #ffffff;
+            --text-muted: #9a9a9a;
+        }
+
+        body {
+            font-family: 'Sora', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        .logo { font-size: 24px; font-weight: 600; color: var(--accent-green); }
+        .status-dot { height: 10px; width: 10px; background-color: var(--accent-green); border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 5px var(--accent-green); }
+
+        /* GRID LAYOUT */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* CARD STYLE */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .card h3 {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* GAUGES (CSS Only) */
+        .gauge-value {
+            font-size: 42px;
+            font-weight: 600;
+            color: var(--accent-green);
+        }
+        .gauge-unit {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* VIDEO STREAM */
+        .video-card {
+            grid-column: span 2; /* Takes up 2 columns */
+            padding: 0;
+            overflow: hidden;
+        }
+        .video-card img {
+            width: 100%;
+            display: block;
+            border-radius: 12px;
+        }
+        .live-badge {
+            position: absolute;
+            top: 15px; left: 15px;
+            background: rgba(231, 76, 60, 0.8);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* VALVE SWITCH */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .switch-status {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+        .danger-text { color: var(--accent-red) !important; }
+
+        /* ALERT BOX */
+        .alert-box {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none; /* Hidden by default */
+            animation: flash 1s infinite alternate;
+        }
+        @keyframes flash { from { opacity: 1; } to { opacity: 0.7; } }
+
+        /* RESPONSIVE VIDEO */
+        @media (max-width: 768px) {
+            .video-card { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">💧 Smart Water Guardian</div>
+        <div><span class="status-dot"></span> ONLINE</div>
+    </div>
+
+    <!-- ALERT BANNER -->
+    <div id="alert-banner" class="alert-box">
+        ⚠️ <b>CRITICAL ALERT:</b> <span id="alert-msg">--</span>
+    </div>
+
+    <div class="grid">
+        <!-- LIVE VIDEO (V1) -->
+        <div class="card video-card">
+            <span class="live-badge">LIVE STREAM</span>
+            <img src="{{ url_for('video_feed') }}" alt="Connecting to Camera...">
+        </div>
+
+        <!-- VALVE STATUS (V4) -->
+        <div class="card">
+            <h3>Valve Status (V4)</h3>
+            <div class="switch-container">
+                <div class="switch-status" id="valve">OPEN</div>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">Auto-Controlled by AI</p>
+        </div>
+
+        <!-- SENSORS (V5, V6, V7) -->
+        <div class="card">
+            <h3>pH Level (V5)</h3>
+            <div class="gauge-value" id="ph">--</div>
+            <div class="gauge-unit">pH</div>
+        </div>
+
+        <div class="card">
+            <h3>Turbidity (V6)</h3>
+            <div class="gauge-value" id="turb">--</div>
+            <div class="gauge-unit">NTU</div>
+        </div>
+
+        <div class="card">
+            <h3>TDS Level (V7)</h3>
+            <div class="gauge-value" id="tds">--</div>
+            <div class="gauge-unit">ppm</div>
+        </div>
+
+        <!-- LAST DANGER IMAGE (V2) -->
+        <div class="card">
+            <h3>Last Danger Evidence (V2)</h3>
+            <img id="evidence-img" src="https://via.placeholder.com/300x200?text=No+Danger+Yet" style="width: 100%; border-radius: 8px;">
+            <a id="evidence-link" href="#" target="_blank" style="display: block; margin-top: 10px; color: var(--accent-green); text-decoration: none; font-size: 12px;">View Full Image ↗</a>
+        </div>
+    </div>
+
+    <script>
+        // Update Dashboard Data Every 1 Second
+        setInterval(async () => {
+            try {
+                const response = await fetch('/data');
+                const data = await response.json();
+
+                // 1. Update Sensors
+                document.getElementById('ph').innerText = data.ph;
+                document.getElementById('turb').innerText = data.turb;
+                document.getElementById('tds').innerText = data.tds;
+
+                // 2. Update Valve Status
+                const valveEl = document.getElementById('valve');
+                if (data.valve === "OPEN") {
+                    valveEl.innerText = "OPEN 🟢";
+                    valveEl.className = "switch-status";
+                } else {
+                    valveEl.innerText = "CLOSED 🔴";
+                    valveEl.className = "switch-status danger-text";
+                }
+
+                // 3. Update Alerts
+                const alertBanner = document.getElementById('alert-banner');
+                if (data.status === "DANGER") {
+                    alertBanner.style.display = "block";
+                    document.getElementById('alert-msg').innerText = data.alert_msg;
+                } else {
+                    alertBanner.style.display = "none";
+                }
+
+                // 4. Update Evidence Image (Only if link changes)
+                if (data.last_image && data.last_image !== "") {
+                    document.getElementById('evidence-img').src = data.last_image;
+                    document.getElementById('evidence-link').href = data.last_image;
+                }
+
+            } catch (error) {
+                console.error("Connection Error:", error);
+            }
+        }, 1000);
+    </script>
+
+</body>
+</html>
