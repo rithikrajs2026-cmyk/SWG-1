@@ -1,0 +1,2 @@
+0 danger
+1 safe
